@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#10243a">
+<title>特马历史数据筛选器</title>
+<style>
+:root{--navy:#10243a;--blue:#1769aa;--bg:#f3f6f9;--muted:#687586;--line:#e1e7ee}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#182230}
+header{background:var(--navy);color:white;padding:24px 18px 28px}header h1{font-size:23px;margin:0 0 8px}header p{margin:0;color:#d8e2ee;font-size:13px;line-height:1.6}
+main{max-width:720px;margin:0 auto;padding:16px}.card{background:white;border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 3px 16px #17212b0b}
+h2{font-size:17px;margin:0 0 14px}.hint{font-size:12px;color:var(--muted);line-height:1.65}.warning{background:#fff5df;color:#79510a;border-radius:10px;padding:12px;font-size:12px;line-height:1.65;margin-top:12px}
+label{display:block;font-size:14px;font-weight:650;margin:15px 0 7px}textarea,input,select{width:100%;border:1px solid var(--line);background:#f8fafc;border-radius:10px;padding:12px;font:inherit;color:#182230}textarea{min-height:125px;resize:vertical;line-height:1.55}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.checks{display:flex;gap:8px;flex-wrap:wrap}.checks label{font-weight:400;margin:0;background:#f2f6fa;padding:10px 12px;border-radius:9px}.checks input{width:auto;margin-right:5px}
+button{width:100%;border:0;border-radius:11px;background:var(--blue);color:white;font-size:15px;font-weight:700;padding:14px;margin-top:12px;cursor:pointer}.secondary{background:#e8f1f9;color:#175f98}
+.results{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:18px 0}.ball{aspect-ratio:1;border-radius:50%;background:linear-gradient(145deg,#2485cc,#14558c);display:flex;align-items:center;justify-content:center;color:white;font-size:22px;font-weight:800;box-shadow:0 3px 8px #1769aa30}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.stat{background:#f3f7fa;border-radius:10px;padding:12px}.stat small{color:var(--muted)}.stat strong{display:block;font-size:22px;margin-top:3px}
+.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:10px 7px;border-bottom:1px solid #edf0f4;white-space:nowrap}th{color:var(--muted);font-weight:600}
+footer{text-align:center;color:#87919d;font-size:11px;padding:8px 20px 26px}
+@media(min-width:600px){header{text-align:center}main{padding:22px}.results{gap:14px}.ball{font-size:27px}}
+</style>
+</head>
+<body>
+<header><h1>特马历史数据筛选器</h1><p>基于历史开奖记录进行统计与条件筛选 · 每次输出 5 个候选号码</p></header>
+<main>
+<section class="card">
+<h2>① 输入历史开奖数字</h2>
+<p class="hint">请按从旧到新的顺序输入每期最后一个开奖数字。默认号码范围为 1–49；数字之间可用逗号、空格或换行分隔。数据仅保存在当前页面，不会上传。</p>
+<textarea id="history" placeholder="例如：03, 18, 27, 03, 41, 12, 36&#10;请替换成你核对过的真实开奖记录"></textarea>
+<div class="grid">
+<div><label for="min">最小号码</label><input id="min" type="number" min="1" max="49" value="1"></div>
+<div><label for="max">最大号码</label><input id="max" type="number" min="1" max="49" value="49"></div>
+</div>
+<label>奇偶筛选</label>
+<div class="checks">
+<label><input type="radio" name="parity" value="all" checked>不限奇偶</label>
+<label><input type="radio" name="parity" value="odd">只选奇数</label>
+<label><input type="radio" name="parity" value="even">只选偶数</label>
+</div>
+<label for="exclude">排除号码（可留空）</label><input id="exclude" placeholder="例如：04, 13, 22">
+<button id="run">统计并筛选 5 个号码</button>
+<button class="secondary" id="demo">填入示例数据</button>
+<button class="secondary" id="clear">清空</button>
+<div class="warning">重要提示：历史频率、热冷走势和遗漏期数只是描述过去，不代表下一期更容易中奖。公平且独立的随机开奖无法靠历史数据可靠预测。请理性娱乐，不要据此加大投注。</div>
+</section>
+<section class="card" id="output" hidden>
+<h2>② 筛选结果</h2>
+<p class="hint">按本页的统计评分排序。评分是候选排序指标，不是中奖概率。</p>
+<div id="balls" class="results"></div>
+<div class="stats">
+<div class="stat"><small>有效历史条数</small><strong id="valid">0</strong></div>
+<div class="stat"><small>历史不同号码</small><strong id="unique">0</strong></div>
+</div>
+<h2 style="margin-top:20px">候选号码统计</h2>
+<div class="tablewrap"><table><thead><tr><th>号码</th><th>历史出现</th><th>近10期</th><th>近20期</th><th>遗漏期数</th><th>排序分</th></tr></thead><tbody id="details"></tbody></table></div>
+<button id="copy">复制 5 个号码</button>
+<p class="hint" id="copyStatus" aria-live="polite"></p>
+</section>
+<section class="card">
+<h2>统计规则</h2>
+<p class="hint">综合排序参考：全历史出现次数、近 10 期出现次数、近 20 期出现次数和遗漏期数。权重为程序设定，可在代码中调整。这些指标不会改变真实开奖的随机性。</p>
+</section>
+</main>
+<footer>本地网页工具 · 不连接彩票销售或开奖平台</footer>
+<script>
+const $ = id => document.getElementById(id);
+const demo = '03, 18, 27, 03, 41, 12, 36, 08, 19, 44, 27, 06, 31, 18, 22, 49, 12, 35, 03, 26, 41, 17, 08, 33, 14, 27, 45, 06, 39, 21';
+function parse(text){return (text.match(/\\d+/g)||[]).map(Number).filter(n=>Number.isInteger(n)&&n>=1&&n<=49)}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+$('demo').addEventListener('click',()=>{$('history').value=demo;$('min').value=1;$('max').value=49;$('exclude').value='';document.querySelector('input[name="parity"][value="all"]').checked=true;});
+$('clear').addEventListener('click',()=>{$('history').value='';$('exclude').value='';$('output').hidden=true;$('copyStatus').textContent='';});
+$('run').addEventListener('click',()=>{
+ const hist=parse($('history').value),min=Number($('min').value),max=Number($('max').value),excluded=new Set(parse($('exclude').value));
+ const parity=document.querySelector('input[name="parity"]:checked').value;
+ if(!Number.isInteger(min)||!Number.isInteger(max)||min<1||max>49||min>max){alert('号码范围请设置在 1–49，且最小值不能大于最大值。');return}
+ if(hist.length<5){alert('请至少输入 5 期有效历史数字。');return}
+ const pool=[];for(let n=min;n<=max;n++){if(excluded.has(n))continue;if(parity==='odd'&&n%2===0)continue;if(parity==='even'&&n%2!==0)continue;pool.push(n)}
+ if(pool.length<5){alert('当前条件下不足 5 个候选号码，请放宽筛选条件。');return}
+ const last10=hist.slice(-10),last20=hist.slice(-20);
+ const scored=pool.map(n=>{
+   const frequency=hist.filter(x=>x===n).length,recent=last10.filter(x=>x===n).length,recent20=last20.filter(x=>x===n).length;
+   let gap=hist.length;for(let i=hist.length-1;i>=0;i--){if(hist[i]===n){gap=hist.length-1-i;break}}
+   const score=frequency+recent*1.8+recent20*.35+Math.min(gap,20)*.08;
+   return {n,frequency,recent,recent20,gap,score}
+ }).sort((a,b)=>b.score-a.score||a.n-b.n).slice(0,5);
+ $('balls').innerHTML=scored.map(x=>`<div class="ball">${String(x.n).padStart(2,'0')}</div>`).join('');
+ $('valid').textContent=hist.length;$('unique').textContent=new Set(hist).size;
+ $('details').innerHTML=scored.map(x=>`<tr><td><b>${String(x.n).padStart(2,'0')}</b></td><td>${x.frequency}</td><td>${x.recent}</td><td>${x.recent20}</td><td>${x.gap}</td><td>${x.score.toFixed(2)}</td></tr>`).join('');
+ $('output').hidden=false;$('copyStatus').textContent='';$('output').scrollIntoView({behavior:'smooth',block:'start'});
+});
+$('copy').addEventListener('click',async()=>{
+ const nums=[...$('balls').children].map(x=>x.textContent).join(', ');
+ try{await navigator.clipboard.writeText(nums);$('copyStatus').textContent='已复制：'+nums}
+ catch(e){const ta=document.createElement('textarea');ta.value=nums;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();$('copyStatus').textContent='已复制：'+nums}
+});
+</script>
+</body>
+</html>
